@@ -1,12 +1,12 @@
 use crate::{
     actors::driven::brightdata::{client::BrightDataClient, jobs::JobFetcherParams},
     app::ports::{
-        driven::{ForFetchingJobs, ForFetchingSnapshot},
-        types::{Job, Snapshot},
+        driven::{ForFetchingLinkedinJobs, ForFetchingSnapshot},
+        types::{Job, LinkedinDiscoverInput, Snapshot},
     },
 };
 use anyhow::{Context, Result};
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{Duration, Instant, sleep};
 pub struct BrightDataLinkedinAdapter<'a> {
     client: &'a BrightDataClient,
 }
@@ -40,18 +40,18 @@ impl<'a> BrightDataLinkedinAdapter<'a> {
 
     async fn trigger_fetching_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         let limit_per_input = limit_per_input.unwrap_or(LIMIT_PER_INPUT);
         let params = JobFetcherParams {
-            location,
-            keyword,
+            inputs,
             limit_per_input,
             dataset_id: LINKEDIN_DATASET_ID.to_string(),
         };
-        self.client.trigger_new_snapshot(&params).await
+        self.client
+            .trigger_new_snapshot(params.get_params(), params.get_payload())
+            .await
     }
 
     async fn wait_snapshot_ready(&self, snapshot_id: &str) -> Result<()> {
@@ -148,15 +148,14 @@ impl<'a> BrightDataLinkedinAdapter<'a> {
     }
 }
 
-impl ForFetchingJobs for &BrightDataLinkedinAdapter<'_> {
+impl ForFetchingLinkedinJobs for &BrightDataLinkedinAdapter<'_> {
     async fn get_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<Vec<Job>> {
         let trigger_body = (**self)
-            .trigger_fetching_jobs(location, keyword, limit_per_input)
+            .trigger_fetching_jobs(inputs, limit_per_input)
             .await
             .context("failed to trigger BrightData snapshot")?;
 
@@ -191,12 +190,11 @@ impl ForFetchingSnapshot for &BrightDataLinkedinAdapter<'_> {
 
     async fn trigger_fetching_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         (**self)
-            .trigger_fetching_jobs(location, keyword, limit_per_input)
+            .trigger_fetching_jobs(inputs, limit_per_input)
             .await
     }
 }

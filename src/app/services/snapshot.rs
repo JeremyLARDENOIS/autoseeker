@@ -1,5 +1,7 @@
 use crate::app::ports::{
-    driven::ForFetchingSnapshot, driving::ForHandlingSnapshot, types::Snapshot,
+    driven::ForFetchingSnapshot,
+    driving::ForHandlingSnapshot,
+    types::{LinkedinDiscoverInput, Snapshot},
 };
 use anyhow::Result;
 
@@ -33,12 +35,11 @@ where
 
     async fn trigger_fetching_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         self.snapshot_client
-            .trigger_fetching_jobs(location, keyword, limit_per_input)
+            .trigger_fetching_jobs(inputs, limit_per_input)
             .await
     }
 }

@@ -38,6 +38,109 @@ Trigger a new snapshot run without downloading/parsing jobs:
 cargo run -- snapshot trigger --location Montpellier --keyword Rust --limit 50
 ```
 
+Add optional Bright Data discovery criteria (single input):
+
+```bash
+cargo run -- snapshot trigger \
+	--location paris \
+	--keyword "product manager" \
+	--country FR \
+	--time-range "Past month" \
+	--job-type "Full-time" \
+	--experience-level Internship \
+	--remote "On-site" \
+	--company "" \
+	--location-radius "" \
+	--selective-search "" \
+	--limit 50
+```
+
+Multi-criteria search (multiple inputs in one trigger request) via JSON file:
+
+```bash
+cargo run -- snapshot trigger --inputs-file inputs.json --limit 50
+```
+
+Example `inputs.json`:
+
+```json
+{
+	"input": [
+		{
+			"location": "paris",
+			"keyword": "product manager",
+			"country": "FR",
+			"time_range": "Past month",
+			"job_type": "Full-time",
+			"experience_level": "Internship",
+			"remote": "On-site",
+			"selective_search": "",
+			"company": "",
+			"location_radius": ""
+		},
+		{
+			"location": "New York",
+			"keyword": "\"python developer\"",
+			"experience_level": "Executive"
+		}
+	]
+}
+```
+
+Complete `inputs.json` template (all supported keys):
+
+```json
+{
+	"input": [
+		{
+			"location": "",
+			"keyword": "",
+			"country": "",
+			"time_range": "",
+			"job_type": "",
+			"experience_level": "",
+			"remote": "",
+			"selective_search": "",
+			"company": "",
+			"location_radius": ""
+		}
+	]
+}
+```
+
+Notes:
+- Any field can be omitted; missing string fields default to `""`.
+- Enum fields (`time_range`, `job_type`, `experience_level`, `remote`) can be omitted, or set to `""` or `null` to mean “unset”.
+
+Allowed enum values in `inputs.json` (exact strings):
+- `time_range`: `Past 24 hours`, `Past week`, `Past month`, `Any time`
+- `job_type`: `Full-time`, `Part-time`, `Contract`, `Temporary`, `Volunteer`
+- `experience_level`: `Internship`, `Entry level`, `Associate`, `Mid-Senior level`, `Director`, `Executive`
+- `remote`: `On-site`, `Remote`, `Hybrid`
+
+Worked multi-input example (mix of strict enums + omitted fields):
+
+```json
+{
+	"input": [
+		{
+			"location": "Montpellier",
+			"keyword": "Rust",
+			"country": "FR",
+			"time_range": "Past week",
+			"job_type": "Full-time",
+			"remote": "Hybrid"
+		},
+		{
+			"location": "Paris",
+			"keyword": "product manager",
+			"experience_level": "Executive",
+			"selective_search": "startup"
+		}
+	]
+}
+```
+
 List available snapshots (printed as a table):
 
 ```bash
@@ -71,4 +174,9 @@ Notes on output:
 ## Notes
 - Response parsing supports both JSON arrays and NDJSON lines.
 - For other cities/keywords, adjust `--location` and `--keyword`.
-- You can override the dataset id via `--dataset-id` on `trigger`.
+
+Enums:
+- `--time-range`: `Past 24 hours`, `Past week`, `Past month`, `Any time`
+- `--job-type`: `Full-time`, `Part-time`, `Contract`, `Temporary`, `Volunteer`
+- `--experience-level`: `Internship`, `Entry level`, `Associate`, `Mid-Senior level`, `Director`, `Executive`
+- `--remote`: `On-site`, `Remote`, `Hybrid`

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::app::ports::types::LinkedinDiscoverInput;
+
 const LIMIT_PER_INPUT: u32 = 10;
 const DATASET_ID: &str = "gd_lpfll7v5hcqtkxl6l";
 
@@ -39,17 +41,15 @@ pub struct JobPosting {
 }
 
 pub struct JobFetcherParams {
-    pub location: String,
-    pub keyword: String,
+    pub inputs: Vec<LinkedinDiscoverInput>,
     pub limit_per_input: u32,
     pub dataset_id: String,
 }
 
 impl JobFetcherParams {
-    pub fn new(location: String, keyword: String) -> Self {
+    pub fn new(inputs: Vec<LinkedinDiscoverInput>) -> Self {
         Self {
-            location,
-            keyword,
+            inputs,
             limit_per_input: LIMIT_PER_INPUT,
             dataset_id: DATASET_ID.to_string(),
         }
@@ -65,26 +65,19 @@ impl JobFetcherParams {
 
     pub fn get_params(&self) -> String {
         format!(
-            "dataset_id={}&notify=false&include_errors=true&type=discover_new&discover_by=keyword&limit_per_input={}",
+            "?dataset_id={}&notify=false&include_errors=true&type=discover_new&discover_by=keyword&limit_per_input={}",
             self.dataset_id, self.limit_per_input
         )
     }
 
     pub fn get_payload(&self) -> Value {
-        json!({
-            "input": [
-                {
-                    "location": self.location,
-                    "keyword": self.keyword,
-                    "country": "",
-                    "time_range": "",
-                    "job_type": "",
-                    "experience_level": "",
-                    "remote": "",
-                    "company": "",
-                    "location_radius": ""
-                }
-            ]
-        })
+        let inputs: Vec<Value> = self
+            .inputs
+            .clone()
+            .into_iter()
+            .map(LinkedinDiscoverInput::into_brightdata_payload)
+            .collect();
+
+        json!({ "input": inputs })
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::app::ports::types::{Job, Snapshot};
+use crate::app::ports::types::{Job, LinkedinDiscoverInput, Snapshot};
 
 pub trait ForHandlingSnapshot {
     fn list_snapshots(&self) -> impl std::future::Future<Output = Result<Vec<Snapshot>>>;
@@ -10,8 +10,7 @@ pub trait ForHandlingSnapshot {
     ) -> impl std::future::Future<Output = Result<String>>;
     fn trigger_fetching_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> impl std::future::Future<Output = Result<String>>;
 }
@@ -19,8 +18,7 @@ pub trait ForHandlingSnapshot {
 pub trait ForHandlingJobs {
     fn get_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> impl std::future::Future<Output = Result<Vec<Job>>>;
 }

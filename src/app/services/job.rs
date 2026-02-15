@@ -1,13 +1,13 @@
 use crate::app::ports::{
-    driven::{ForFetchingJobs, JobSaver},
+    driven::{ForFetchingLinkedinJobs, JobSaver},
     driving::ForHandlingJobs,
-    types::Job,
+    types::{Job, LinkedinDiscoverInput},
 };
 use anyhow::Result;
 
 pub struct JobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingJobs,
+    FJ: ForFetchingLinkedinJobs,
     JS: JobSaver,
 {
     job_client: FJ,
@@ -16,7 +16,7 @@ where
 
 impl<FJ, JS> JobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingJobs,
+    FJ: ForFetchingLinkedinJobs,
     JS: JobSaver,
 {
     pub fn new(job_client: FJ, job_saver: JS) -> Self {
@@ -29,19 +29,15 @@ where
 
 impl<FJ, JS> ForHandlingJobs for JobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingJobs,
+    FJ: ForFetchingLinkedinJobs,
     JS: JobSaver,
 {
     async fn get_jobs(
         &self,
-        location: String,
-        keyword: String,
+        inputs: Vec<LinkedinDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<Vec<Job>> {
-        let jobs = self
-            .job_client
-            .get_jobs(location, keyword, limit_per_input)
-            .await?;
+        let jobs = self.job_client.get_jobs(inputs, limit_per_input).await?;
         self.job_saver.save_jobs(&jobs).await?;
         Ok(jobs)
     }

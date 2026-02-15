@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 
-use crate::actors::driven::brightdata::jobs::JobFetcherParams;
 use crate::actors::driven::brightdata::snapshots::{Snapshot, SnapshotsResponse};
 
 const BASE_URL: &str = "https://api.brightdata.com/datasets/v3";
@@ -49,11 +48,15 @@ impl BrightDataClient {
         Ok(resp)
     }
 
-    pub async fn trigger_new_snapshot(&self, params: &JobFetcherParams) -> Result<String> {
-        let endpoint = format!("/trigger?{}", params.get_params());
+    pub async fn trigger_new_snapshot(
+        &self,
+        params: String,
+        payload: serde_json::Value,
+    ) -> Result<String> {
+        let endpoint = format!("/trigger{}", params);
 
         let resp = self
-            .post(&endpoint, &params.get_payload())
+            .post(&endpoint, &payload)
             .await
             .context("request failed")?;
 
