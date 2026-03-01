@@ -1,14 +1,16 @@
 # autoseeker
 
-Small Rust CLI to interact with Bright Data's LinkedIn Jobs dataset.
+Small Rust CLI to interact with Bright Data's Jobs datasets (LinkedIn + Indeed).
 
 Command groups:
 - `jobs`: fetch and save parsed jobs
 - `snapshot`: trigger/list/download raw snapshots
 
 ## Prerequisites
-- Rust toolchain (stable)
 - A Bright Data API token
+
+Optional (build from source):
+- Rust toolchain (stable)
 
 ## Configure
 `BRIGHTDATA_TOKEN` is required. `.env` is supported:
@@ -19,29 +21,57 @@ echo 'BRIGHTDATA_TOKEN=<YOUR_TOKEN>' > .env
 export BRIGHTDATA_TOKEN="<YOUR_TOKEN>"
 ```
 
+## Install
+Download a prebuilt binary from GitHub Releases (recommended).
+
+Assets published by the release workflow:
+- Linux: `autoseeker-linux-x86_64`
+- macOS: `autoseeker-macos`
+- Windows: `autoseeker-windows-x86_64.exe`
+
+Example (Linux/macOS):
+
+```bash
+# download the right asset for your platform from the Releases page
+mv ./autoseeker-linux-x86_64 ./autoseeker
+chmod +x ./autoseeker
+./autoseeker --help
+```
+
+You can also rename it to `autoseeker` and move it into your `PATH` (e.g. `~/.local/bin`).
+
+Windows (PowerShell) example:
+
+```powershell
+Rename-Item .\autoseeker-windows-x86_64.exe autoseeker.exe
+.\autoseeker.exe --help
+```
+
+In the examples below, `autoseeker ...` assumes the binary is in your `PATH`. If it’s not, run `./autoseeker ...` (Linux/macOS) or `.\autoseeker.exe ...` (Windows).
+
 ## Run
 Fetch jobs for Montpellier with keyword Rust (waits for snapshot readiness and saves `jobs.json`):
 
 ```bash
-cargo run -- jobs get --location Montpellier --keyword Rust
+autoseeker jobs get --location Montpellier --keyword Rust
 ```
 
 Tune the discovery limit (per-input) if needed:
 
 ```bash
-cargo run -- jobs get --location Montpellier --keyword Rust --limit 50
+autoseeker jobs get --location Montpellier --keyword Rust --limit 50
 ```
 
 Trigger a new snapshot run without downloading/parsing jobs:
 
 ```bash
-cargo run -- snapshot trigger --location Montpellier --keyword Rust --limit 50
+autoseeker snapshot trigger --location Montpellier --keyword Rust --limit 50
 ```
 
 Add optional Bright Data discovery criteria (single input):
 
 ```bash
-cargo run -- snapshot trigger \
+autoseeker snapshot trigger \
 	--location paris \
 	--keyword "product manager" \
 	--country FR \
@@ -58,17 +88,24 @@ cargo run -- snapshot trigger \
 Multi-criteria search (multiple inputs in one trigger request) via JSON file:
 
 ```bash
-cargo run -- snapshot trigger --inputs-file inputs.json --limit 50
+autoseeker snapshot trigger --inputs-file inputs.json --limit 50
 ```
 
 Optional: filter providers in the file:
 
 ```bash
 # run only LinkedIn entries from the file
-cargo run -- snapshot trigger --inputs-file inputs.json --provider linkedin
+autoseeker snapshot trigger --inputs-file inputs.json --provider linkedin
 
 # run only Indeed entries from the file
-cargo run -- snapshot trigger --inputs-file inputs.json --provider indeed
+autoseeker snapshot trigger --inputs-file inputs.json --provider indeed
+```
+
+## Build from source
+
+```bash
+cargo build --release
+./target/release/autoseeker --help
 ```
 
 The `--inputs-file` format supports LinkedIn and Indeed inputs.
@@ -201,27 +238,27 @@ Worked multi-input example (mix of strict enums + omitted fields):
 List available snapshots (printed as a table):
 
 ```bash
-cargo run -- snapshot list
+autoseeker snapshot list
 ```
 
 Download a snapshot by id (writes to `snapshot.json` by default):
 
 ```bash
-cargo run -- snapshot download <SNAPSHOT_ID>
+autoseeker snapshot download <SNAPSHOT_ID>
 # or choose an output file
-cargo run -- snapshot download <SNAPSHOT_ID> --output my_snapshot.json
+autoseeker snapshot download <SNAPSHOT_ID> --output my_snapshot.json
 ```
 
 For options, run:
 
 ```bash
-cargo run -- --help
-cargo run -- jobs --help
-cargo run -- jobs get --help
-cargo run -- snapshot --help
-cargo run -- snapshot trigger --help
-cargo run -- snapshot list --help
-cargo run -- snapshot download --help
+autoseeker --help
+autoseeker jobs --help
+autoseeker jobs get --help
+autoseeker snapshot --help
+autoseeker snapshot trigger --help
+autoseeker snapshot list --help
+autoseeker snapshot download --help
 ```
 
 Notes on output:

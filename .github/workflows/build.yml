@@ -1,0 +1,70 @@
+name: build
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_suffix: linux-x86_64
+            exe_suffix: ""
+          - os: macos-latest
+            asset_suffix: macos
+            exe_suffix: ""
+          - os: windows-latest
+            asset_suffix: windows-x86_64
+            exe_suffix: .exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.93.0
+        uses: dtolnay/rust-toolchain@1.93.0
+
+      - name: Build (release)
+        run: cargo build --release
+        shell: bash
+
+      - name: Prepare dist
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          bin_name="autoseeker${{ matrix.exe_suffix }}"
+          cp "target/release/${bin_name}" "dist/autoseeker-${{ matrix.asset_suffix }}${{ matrix.exe_suffix }}"
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoseeker-${{ matrix.asset_suffix }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: autoseeker-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
