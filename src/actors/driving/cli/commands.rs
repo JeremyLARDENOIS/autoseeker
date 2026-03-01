@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-use crate::app::ports::types::{ExperienceLevel, JobType, Remote, TimeRange};
+use crate::app::ports::types::{ExperienceLevel, IndeedDatePosted, JobType, Remote, TimeRange};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum CliTimeRange {
@@ -114,6 +114,59 @@ impl From<CliRemote> for Remote {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum CliProvider {
+    #[value(name = "all", alias = "both")]
+    All,
+    #[value(name = "linkedin")]
+    Linkedin,
+    #[value(name = "indeed")]
+    Indeed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum CliIndeedDatePosted {
+    #[value(
+        name = "Last 24 hours",
+        alias = "1",
+        alias = "last-24-hours",
+        alias = "last_24_hours"
+    )]
+    Last24Hours,
+    #[value(
+        name = "Last 3 days",
+        alias = "3",
+        alias = "last-3-days",
+        alias = "last_3_days"
+    )]
+    Last3Days,
+    #[value(
+        name = "Last 7 days",
+        alias = "7",
+        alias = "last-7-days",
+        alias = "last_7_days"
+    )]
+    Last7Days,
+    #[value(
+        name = "Last 14 days",
+        alias = "14",
+        alias = "last-14-days",
+        alias = "last_14_days"
+    )]
+    Last14Days,
+}
+
+impl From<CliIndeedDatePosted> for IndeedDatePosted {
+    fn from(value: CliIndeedDatePosted) -> Self {
+        match value {
+            CliIndeedDatePosted::Last24Hours => IndeedDatePosted::Last24Hours,
+            CliIndeedDatePosted::Last3Days => IndeedDatePosted::Last3Days,
+            CliIndeedDatePosted::Last7Days => IndeedDatePosted::Last7Days,
+            CliIndeedDatePosted::Last14Days => IndeedDatePosted::Last14Days,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Autoseeker CLI", long_about = None)]
 pub struct Cli {
@@ -161,6 +214,10 @@ pub struct TriggerArgs {
     #[arg(long, value_name = "FILE", conflicts_with_all = [
         "location",
         "keyword",
+        "domain",
+        "date_posted",
+        "posted_by",
+        "pay",
         "country",
         "time_range",
         "job_type",
@@ -172,9 +229,15 @@ pub struct TriggerArgs {
     ])]
     pub inputs_file: Option<PathBuf>,
 
+    /// Provider filter when using --inputs-file.
+    /// Use this to run only one provider even if the file contains both.
+    /// In flat-flag mode (no --inputs-file), this selects which provider to run.
+    #[arg(long, value_enum)]
+    pub provider: Option<CliProvider>,
+
     /// Country code (e.g., FR)
-    #[arg(long, default_value = "")]
-    pub country: String,
+    #[arg(long)]
+    pub country: Option<String>,
 
     /// Time range
     #[arg(long, value_enum)]
@@ -193,16 +256,33 @@ pub struct TriggerArgs {
     pub remote: Option<CliRemote>,
 
     /// Selective search
-    #[arg(long, default_value = "")]
-    pub selective_search: String,
+    #[arg(long)]
+    pub selective_search: Option<String>,
 
     /// Company name
-    #[arg(long, default_value = "")]
-    pub company: String,
+    #[arg(long)]
+    pub company: Option<String>,
 
     /// Location radius
-    #[arg(long, default_value = "")]
-    pub location_radius: String,
+    #[arg(long)]
+    pub location_radius: Option<String>,
+
+    // --- Indeed-only flat flags ---
+    /// Indeed: domain (e.g., fr.indeed.com)
+    #[arg(long)]
+    pub domain: Option<String>,
+
+    /// Indeed: date_posted
+    #[arg(long, value_enum)]
+    pub date_posted: Option<CliIndeedDatePosted>,
+
+    /// Indeed: posted_by
+    #[arg(long)]
+    pub posted_by: Option<String>,
+
+    /// Indeed: pay
+    #[arg(long)]
+    pub pay: Option<u32>,
 
     /// Limit per input for Bright Data discovery
     #[arg(long = "limit")]

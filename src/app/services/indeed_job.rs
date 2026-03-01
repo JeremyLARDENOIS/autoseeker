@@ -1,22 +1,22 @@
 use crate::app::ports::{
-    driven::{ForFetchingLinkedinJobs, JobSaver},
-    driving::ForHandlingLinkedinJobs,
-    types::{Job, LinkedinDiscoverInput},
+    driven::{ForFetchingIndeedJobs, JobSaver},
+    driving::ForHandlingIndeedJobs,
+    types::{IndeedDiscoverInput, Job},
 };
 use anyhow::Result;
 
-pub struct JobFetcherService<FJ, JS>
+pub struct IndeedJobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingLinkedinJobs,
+    FJ: ForFetchingIndeedJobs,
     JS: JobSaver,
 {
     job_client: FJ,
     job_saver: JS,
 }
 
-impl<FJ, JS> JobFetcherService<FJ, JS>
+impl<FJ, JS> IndeedJobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingLinkedinJobs,
+    FJ: ForFetchingIndeedJobs,
     JS: JobSaver,
 {
     pub fn new(job_client: FJ, job_saver: JS) -> Self {
@@ -27,14 +27,14 @@ where
     }
 }
 
-impl<FJ, JS> ForHandlingLinkedinJobs for JobFetcherService<FJ, JS>
+impl<FJ, JS> ForHandlingIndeedJobs for IndeedJobFetcherService<FJ, JS>
 where
-    FJ: ForFetchingLinkedinJobs,
+    FJ: ForFetchingIndeedJobs,
     JS: JobSaver,
 {
     async fn get_jobs(
         &self,
-        inputs: Vec<LinkedinDiscoverInput>,
+        inputs: Vec<IndeedDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<Vec<Job>> {
         let jobs = self.job_client.get_jobs(inputs, limit_per_input).await?;

@@ -61,12 +61,30 @@ Multi-criteria search (multiple inputs in one trigger request) via JSON file:
 cargo run -- snapshot trigger --inputs-file inputs.json --limit 50
 ```
 
-Example `inputs.json`:
+Optional: filter providers in the file:
+
+```bash
+# run only LinkedIn entries from the file
+cargo run -- snapshot trigger --inputs-file inputs.json --provider linkedin
+
+# run only Indeed entries from the file
+cargo run -- snapshot trigger --inputs-file inputs.json --provider indeed
+```
+
+The `--inputs-file` format supports LinkedIn and Indeed inputs.
+
+Notes:
+- Each entry can include a `provider` field (`"linkedin"` or `"indeed"`).
+- Backward compatible: if `provider` is omitted, the entry is treated as **LinkedIn**.
+- Any string field can be omitted; missing string fields default to `""`.
+
+Example mixed-provider `inputs.json`:
 
 ```json
 {
 	"input": [
 		{
+			"provider": "linkedin",
 			"location": "paris",
 			"keyword": "product manager",
 			"country": "FR",
@@ -79,20 +97,29 @@ Example `inputs.json`:
 			"location_radius": ""
 		},
 		{
-			"location": "New York",
-			"keyword": "\"python developer\"",
-			"experience_level": "Executive"
+			"provider": "indeed",
+			"country": "FR",
+			"domain": "fr.indeed.com",
+			"keyword": "\"product manager\"",
+			"location": "Paris, Île-de-France",
+			"date_posted": "Last 24 hours",
+			"posted_by": "",
+			"location_radius": "",
+			"pay": 60000
 		}
 	]
 }
 ```
 
-Complete `inputs.json` template (all supported keys):
+Complete `inputs.json` templates (all supported keys):
+
+LinkedIn entry:
 
 ```json
 {
 	"input": [
 		{
+			"provider": "linkedin",
 			"location": "",
 			"keyword": "",
 			"country": "",
@@ -108,9 +135,37 @@ Complete `inputs.json` template (all supported keys):
 }
 ```
 
-Notes:
-- Any field can be omitted; missing string fields default to `""`.
+Indeed entry:
+
+```json
+{
+	"input": [
+		{
+			"provider": "indeed",
+			"country": "",
+			"domain": "",
+			"keyword": "",
+			"location": "",
+			"date_posted": "",
+			"posted_by": "",
+			"location_radius": "",
+			"pay": null
+		}
+	]
+}
+```
+
+LinkedIn enum notes:
 - Enum fields (`time_range`, `job_type`, `experience_level`, `remote`) can be omitted, or set to `""` or `null` to mean “unset”.
+
+Indeed enum notes:
+- `date_posted` can be omitted, or set to `""` or `null` to mean “unset”.
+
+Allowed `date_posted` values in `inputs.json` (exact strings):
+- `Last 24 hours`, `Last 3 days`, `Last 7 days`, `Last 14 days`
+
+Backward compatible values:
+- `date_posted` also accepts `"1"`, `"3"`, `"7"`, `"14"` (mapped to the corresponding `Last ...` values).
 
 Allowed enum values in `inputs.json` (exact strings):
 - `time_range`: `Past 24 hours`, `Past week`, `Past month`, `Any time`
@@ -124,6 +179,7 @@ Worked multi-input example (mix of strict enums + omitted fields):
 {
 	"input": [
 		{
+			"provider": "linkedin",
 			"location": "Montpellier",
 			"keyword": "Rust",
 			"country": "FR",
@@ -132,6 +188,7 @@ Worked multi-input example (mix of strict enums + omitted fields):
 			"remote": "Hybrid"
 		},
 		{
+			"provider": "linkedin",
 			"location": "Paris",
 			"keyword": "product manager",
 			"experience_level": "Executive",

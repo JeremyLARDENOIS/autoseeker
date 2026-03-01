@@ -1,29 +1,29 @@
 use crate::app::ports::{
-    driven::ForFetchingSnapshot,
-    driving::ForHandlingSnapshot,
-    types::{LinkedinDiscoverInput, Snapshot},
+    driven::ForFetchingIndeedSnapshot,
+    driving::ForHandlingIndeedSnapshot,
+    types::{IndeedDiscoverInput, Snapshot},
 };
 use anyhow::Result;
 
-pub struct SnapshotService<SC>
+pub struct IndeedSnapshotService<SC>
 where
-    SC: ForFetchingSnapshot,
+    SC: ForFetchingIndeedSnapshot,
 {
     snapshot_client: SC,
 }
 
-impl<SC> SnapshotService<SC>
+impl<SC> IndeedSnapshotService<SC>
 where
-    SC: ForFetchingSnapshot,
+    SC: ForFetchingIndeedSnapshot,
 {
     pub fn new(snapshot_client: SC) -> Self {
         Self { snapshot_client }
     }
 }
 
-impl<SC> ForHandlingSnapshot for SnapshotService<SC>
+impl<SC> ForHandlingIndeedSnapshot for IndeedSnapshotService<SC>
 where
-    SC: ForFetchingSnapshot,
+    SC: ForFetchingIndeedSnapshot,
 {
     async fn list_snapshots(&self) -> Result<Vec<Snapshot>> {
         self.snapshot_client.list_snapshots().await
@@ -35,7 +35,7 @@ where
 
     async fn trigger_fetching_jobs(
         &self,
-        inputs: Vec<LinkedinDiscoverInput>,
+        inputs: Vec<IndeedDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         self.snapshot_client

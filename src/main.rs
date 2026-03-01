@@ -4,8 +4,13 @@ use autoseeker::{
         driven::{brightdata::client::BrightDataClient, file_saver::FileSaver},
         driving::cli::handler::CLIHandler,
     },
-    adapters::driven::linkedin_brightdata::BrightDataLinkedinAdapter,
-    app::services::{job::JobFetcherService, snapshot::SnapshotService},
+    adapters::driven::{
+        indeed_brightdata::BrightDataIndeedAdapter, linkedin_brightdata::BrightDataLinkedinAdapter,
+    },
+    app::services::{
+        indeed_job::IndeedJobFetcherService, indeed_snapshot::IndeedSnapshotService,
+        job::JobFetcherService, linkedin_snapshot::LinkedinSnapshotService,
+    },
 };
 use clap::Parser;
 use dotenvy::dotenv;
@@ -21,11 +26,20 @@ async fn main() -> Result<()> {
     let client = BrightDataClient::new(brightdata_token)?;
 
     let linkedin_adapter = BrightDataLinkedinAdapter::new(&client);
+    let indeed_adapter = BrightDataIndeedAdapter::new(&client);
     let job_saver = FileSaver::new();
-    let job_fetcher_service = JobFetcherService::new(&linkedin_adapter, job_saver);
-    let snapshot_handler_service = SnapshotService::new(&linkedin_adapter);
+    let linkedin_job_fetcher_service = JobFetcherService::new(&linkedin_adapter, &job_saver);
+    let linkedin_snapshot_handler_service = LinkedinSnapshotService::new(&linkedin_adapter);
 
-    let cli_handler = CLIHandler::new(job_fetcher_service, snapshot_handler_service);
+    let indeed_job_fetcher_service = IndeedJobFetcherService::new(&indeed_adapter, &job_saver);
+    let indeed_snapshot_handler_service = IndeedSnapshotService::new(&indeed_adapter);
+
+    let cli_handler = CLIHandler::new(
+        linkedin_job_fetcher_service,
+        linkedin_snapshot_handler_service,
+        indeed_job_fetcher_service,
+        indeed_snapshot_handler_service,
+    );
     cli_handler.run(cli).await?;
 
     Ok(())

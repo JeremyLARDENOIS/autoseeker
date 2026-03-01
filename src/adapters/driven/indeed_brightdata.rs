@@ -1,20 +1,22 @@
 use crate::{
-    actors::driven::brightdata::{client::BrightDataClient, jobs::JobFetcherParams},
+    actors::driven::brightdata::client::BrightDataClient,
     app::ports::{
-        driven::{ForFetchingLinkedinJobs, ForFetchingLinkedinSnapshot},
-        types::{Job, LinkedinDiscoverInput, Snapshot},
+        driven::{ForFetchingIndeedJobs, ForFetchingIndeedSnapshot},
+        types::{IndeedDiscoverInput, Job, Snapshot},
     },
 };
 use anyhow::{Context, Result};
+use serde_json::{Value, json};
 use tokio::time::{Duration, Instant, sleep};
-pub struct BrightDataLinkedinAdapter<'a> {
+
+pub struct BrightDataIndeedAdapter<'a> {
     client: &'a BrightDataClient,
 }
 
-const LINKEDIN_DATASET_ID: &str = "gd_lpfll7v5hcqtkxl6l";
+const INDEED_DATASET_ID: &str = "gd_l4dx9j9sscpvs7no2";
 const LIMIT_PER_INPUT: u32 = 100;
 
-impl<'a> BrightDataLinkedinAdapter<'a> {
+impl<'a> BrightDataIndeedAdapter<'a> {
     pub fn new(client: &'a BrightDataClient) -> Self {
         Self { client }
     }
@@ -40,17 +42,22 @@ impl<'a> BrightDataLinkedinAdapter<'a> {
 
     async fn trigger_fetching_jobs(
         &self,
-        inputs: Vec<LinkedinDiscoverInput>,
+        inputs: Vec<IndeedDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         let limit_per_input = limit_per_input.unwrap_or(LIMIT_PER_INPUT);
-        let params = JobFetcherParams {
-            inputs,
-            limit_per_input,
-            dataset_id: LINKEDIN_DATASET_ID.to_string(),
-        };
+        let params = format!(
+            "?dataset_id={}&notify=false&include_errors=true&type=discover_new&discover_by=keyword&limit_per_input={}",
+            INDEED_DATASET_ID, limit_per_input
+        );
+
+        let payload_inputs: Vec<Value> = inputs
+            .into_iter()
+            .map(IndeedDiscoverInput::into_brightdata_payload)
+            .collect();
+
         self.client
-            .trigger_new_snapshot(params.get_params(), params.get_payload())
+            .trigger_new_snapshot(params, json!({"input": payload_inputs}))
             .await
     }
 
@@ -106,52 +113,119 @@ impl<'a> BrightDataLinkedinAdapter<'a> {
         Ok(trimmed.to_string())
     }
 
-    fn parse_jobs_from_snapshot_body(body: &str) -> Result<Vec<Job>> {
-        use crate::actors::driven::brightdata::jobs::JobPosting;
+    fn extract_string(value: &Value, keys: &[&str]) -> String {
+        let obj = match value.as_object() {
+            Some(o) => o,
+            None => return String::new(),
+        };
 
+        for key in keys {
+            if let Some(v) = obj.get(*key) {
+                if let Some(s) = v.as_str()
+                    && !s.trim().is_empty()
+                {
+                    return s.to_string();
+                }
+
+                if let Some(o) = v.as_object()
+                    && let Some(s) = o.get("name").and_then(|x| x.as_str())
+                    && !s.trim().is_empty()
+                {
+                    return s.to_string();
+                }
+
+                if let Some(arr) = v.as_array() {
+                    for item in arr {
+                        if let Some(s) = item.as_str()
+                            && !s.trim().is_empty()
+                        {
+                            return s.to_string();
+                        }
+                    }
+                }
+            }
+        }
+
+        String::new()
+    }
+
+    fn parse_jobs_from_snapshot_body(body: &str) -> Result<Vec<Job>> {
         let trimmed = body.trim();
         if trimmed.is_empty() {
             return Ok(Vec::new());
         }
 
-        let postings: Vec<JobPosting> = match serde_json::from_str::<Vec<JobPosting>>(trimmed) {
+        let records: Vec<Value> = match serde_json::from_str::<Vec<Value>>(trimmed) {
             Ok(v) => v,
             Err(_) => {
-                // BrightData may return JSONL; try per-line parsing.
                 let mut out = Vec::new();
                 for line in trimmed.lines().map(str::trim).filter(|l| !l.is_empty()) {
-                    if let Ok(p) = serde_json::from_str::<JobPosting>(line) {
-                        out.push(p);
+                    if let Ok(v) = serde_json::from_str::<Value>(line) {
+                        out.push(v);
                     }
                 }
                 out
             }
         };
 
-        let jobs = postings
-            .into_iter()
-            .map(|p| Job {
-                url: p.url.unwrap_or_default(),
-                job_title: p.job_title.unwrap_or_default(),
-                company_name: p.company_name.unwrap_or_default(),
-                job_location: p.job_location.unwrap_or_default(),
-                job_description: p
-                    .job_description_formatted
-                    .or(p.job_summary)
-                    .unwrap_or_default(),
-                job_posted_date: p.job_posted_date.unwrap_or_default(),
-            })
-            .filter(|j| !j.url.is_empty() || !j.job_title.is_empty())
-            .collect();
+        let mut jobs = Vec::new();
+        for record in records {
+            let Some(obj) = record.as_object() else {
+                continue;
+            };
+
+            if obj.contains_key("error") || obj.contains_key("errors") {
+                continue;
+            }
+
+            let url = Self::extract_string(&record, &["url", "job_url", "jobUrl", "link"]);
+            let job_title =
+                Self::extract_string(&record, &["job_title", "title", "jobTitle", "position"]);
+            let company_name = Self::extract_string(
+                &record,
+                &["company_name", "company", "companyName", "employer"],
+            );
+            let job_location =
+                Self::extract_string(&record, &["job_location", "location", "jobLocation"]);
+            let job_description = Self::extract_string(
+                &record,
+                &[
+                    "description_text",
+                    "description",
+                    "job_description",
+                    "job_description_formatted",
+                    "job_summary",
+                ],
+            );
+            let job_posted_date = Self::extract_string(
+                &record,
+                &["job_posted_date", "posted_at", "date_posted", "date"],
+            );
+
+            let job = Job {
+                url,
+                job_title,
+                company_name,
+                job_location,
+                job_description,
+                job_posted_date,
+            };
+
+            if job.url.is_empty() && job.job_title.is_empty() {
+                continue;
+            }
+
+            jobs.push(job);
+        }
 
         Ok(jobs)
     }
 }
 
-impl ForFetchingLinkedinJobs for &BrightDataLinkedinAdapter<'_> {
+impl ForFetchingIndeedJobs for &BrightDataIndeedAdapter<'_> {
     async fn get_jobs(
         &self,
-        inputs: Vec<LinkedinDiscoverInput>,
+        inputs: Vec<IndeedDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<Vec<Job>> {
         let trigger_body = (**self)
@@ -160,7 +234,7 @@ impl ForFetchingLinkedinJobs for &BrightDataLinkedinAdapter<'_> {
             .context("failed to trigger BrightData snapshot")?;
 
         let snapshot_id =
-            BrightDataLinkedinAdapter::parse_trigger_response_snapshot_id(&trigger_body)
+            BrightDataIndeedAdapter::parse_trigger_response_snapshot_id(&trigger_body)
                 .context("failed to extract snapshot id from trigger response")?;
 
         (**self)
@@ -174,12 +248,12 @@ impl ForFetchingLinkedinJobs for &BrightDataLinkedinAdapter<'_> {
             .await
             .context("failed to download snapshot")?;
 
-        BrightDataLinkedinAdapter::parse_jobs_from_snapshot_body(&snapshot_body)
+        BrightDataIndeedAdapter::parse_jobs_from_snapshot_body(&snapshot_body)
             .context("failed to parse jobs from snapshot")
     }
 }
 
-impl ForFetchingLinkedinSnapshot for &BrightDataLinkedinAdapter<'_> {
+impl ForFetchingIndeedSnapshot for &BrightDataIndeedAdapter<'_> {
     async fn list_snapshots(&self) -> Result<Vec<Snapshot>> {
         (**self).list_snapshots().await
     }
@@ -190,7 +264,7 @@ impl ForFetchingLinkedinSnapshot for &BrightDataLinkedinAdapter<'_> {
 
     async fn trigger_fetching_jobs(
         &self,
-        inputs: Vec<LinkedinDiscoverInput>,
+        inputs: Vec<IndeedDiscoverInput>,
         limit_per_input: Option<u32>,
     ) -> Result<String> {
         (**self)

@@ -1,7 +1,9 @@
 pub mod app {
     pub mod services {
+        pub mod indeed_job;
+        pub mod indeed_snapshot;
         pub mod job;
-        pub mod snapshot;
+        pub mod linkedin_snapshot;
     }
     pub mod ports {
         pub mod driven;
@@ -30,6 +32,7 @@ pub mod actors {
 
 pub mod adapters {
     pub mod driven {
+        pub mod indeed_brightdata;
         pub mod linkedin_brightdata;
     }
 }
